@@ -8,6 +8,8 @@ locals {
 
   template_standalone = file("${path.module}/conf/nomad/presto_standalone.hcl")
   template_cluster    = file("${path.module}/conf/nomad/presto.hcl")
+  template_script = file("${path.module}/conf/nomad/ml_model.hcl")
+  
   consul_connect_plugin_uri = "${var.consul_connect_plugin_artifact_source}/${var.consul_connect_plugin_version}/presto-consul-connect-${var.consul_connect_plugin_version}-jar-with-dependencies.jar"
   node_types = var.coordinator ? ["coordinator", "worker"] : ["worker"]
 }
@@ -62,4 +64,28 @@ data "template_file" "template_nomad_job_presto" {
 resource "nomad_job" "nomad_job_presto" {
   jobspec = data.template_file.template_nomad_job_presto.rendered
   detach  = false
+}
+
+data "template_file" "template_nomad_job_model" {
+  template = local.template_script
+
+  vars = {
+    datacenters    = local.datacenters
+    namespace      = var.nomad_namespace
+
+    service_name   = var.model_service_name
+
+    # presto
+    presto_service_name = var.presto.service_name
+    presto_port         = var.presto.port
+  }
+}
+
+resource "nomad_job" "nomad_job_model" {
+  jobspec = data.template_file.template_nomad_job_model.rendered
+  detach  = false
+
+  depends_on  = [
+    nomad_job.nomad_job_presto
+  ]
 }

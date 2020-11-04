@@ -162,3 +162,23 @@ variable "minio" {
   })
   description = "Minio data-object contains service_name, port, access_key and secret_key"
 }
+
+# presto 
+variable "presto" {
+  type = object({
+    service_name = string,
+    port = number,
+  })
+  default = {
+    service_name = "presto"
+    port         = 8080
+  }
+  description = "Presto data-object contains service_name and port"
+}
+
+# ML model
+variable "model_service_name" {
+  type        = string
+  description = "ML model service name"
+  default     = "model"
+}

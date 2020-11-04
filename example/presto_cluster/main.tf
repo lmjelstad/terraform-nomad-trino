@@ -43,7 +43,7 @@ module "presto" {
   }
 
   service_name          = local.presto.service_name
-  mode                  = "cluster"
+  mode                  = "standalone"
   workers               = 1
   consul_http_addr      = "http://10.0.3.10:8500"
   debug                 = true

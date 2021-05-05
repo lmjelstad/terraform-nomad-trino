@@ -120,8 +120,8 @@ data "template_file" "template_nomad_job_model" {
 
     service_name   = var.model_service_name
 
-    # presto
-    presto_service_name = var.service_name
+    # trino
+    trino_service_name = var.service_name
     # presto_port         = var.presto.port
   }
 }

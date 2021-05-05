@@ -26,7 +26,7 @@ jobs:
           VALIDATE_MD: true
           VALIDATE_OPENAPI: true
           VALIDATE_PYTHON: true
-          VALIDATE_PYTHON_PYLINT: true
+          # VALIDATE_PYTHON_PYLINT: true
           VALIDATE_PYTHON_FLAKE8: true
           VALIDATE_RUBY: true
           VALIDATE_SQL: true

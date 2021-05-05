@@ -1,15 +1,15 @@
 include dev/.env
 export PATH := $(shell pwd)/tmp:$(PATH)
 
-# Presto version
-PRESTO_VERSION = 341
+# Trino version
+TRINO_VERSION = 354
 
-.ONESHELL .PHONY: up update-box destroy-box remove-tmp clean example presto-cli
+.ONESHELL .PHONY: up update-box destroy-box remove-tmp clean example trino-cli build-plugin
 .DEFAULT_GOAL := up
 
 #### Pre requisites ####
 install:
-	 mkdir -p tmp;(cd tmp; git clone --depth=1 https://github.com/fredrikhgrelland/vagrant-hashistack.git; cd vagrant-hashistack; make install); rm -rf tmp/vagrant-hashistack
+	 mkdir -p tmp;(cd tmp; git clone --depth=1 https://github.com/skatteetaten/vagrant-hashistack.git; cd vagrant-hashistack; make install); rm -rf tmp/vagrant-hashistack
 
 linter:
 	docker run -e RUN_LOCAL=true -v "${PWD}:/tmp/lint/" github/super-linter
@@ -31,26 +31,41 @@ endif
 
 #### Development ####
 # start commands
-dev: update-box custom_ca
-	SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} CUSTOM_CA=${CUSTOM_CA} ANSIBLE_ARGS='--skip-tags "test"' vagrant up --provision
+dev-standalone: update-box custom_ca build-plugin
+	SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} CUSTOM_CA=${CUSTOM_CA} ANSIBLE_ARGS='-v --skip-tags "test" --extra-vars "\"mode=standalone\""' vagrant up --provision
+
+dev: update-box custom_ca build-plugin
+	SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} CUSTOM_CA=${CUSTOM_CA} ANSIBLE_ARGS='-v --skip-tags "test" --extra-vars "\"mode=cluster\""' vagrant up --provision
+
+build-plugin:
+	(cd java; mvn package)
 
 custom_ca:
 ifdef CUSTOM_CA
 	cp -f ${CUSTOM_CA} docker/conf/certificates/
 endif
 
+up-standalone: update-box custom_ca
+ifeq ($(GITHUB_ACTIONS),true) # Always set to true when GitHub Actions is running the workflow. You can use this variable to differentiate when tests are being run locally or by GitHub Actions.
+	SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} ANSIBLE_ARGS='-v --extra-vars "\"ci_test=true mode=standalone\""' vagrant up --provision
+else
+	SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} CUSTOM_CA=${CUSTOM_CA} ANSIBLE_ARGS='-v --extra-vars "\"mode=standalone\""' vagrant up --provision
+endif
+
 up: update-box custom_ca
 ifeq ($(GITHUB_ACTIONS),true) # Always set to true when GitHub Actions is running the workflow. You can use this variable to differentiate when tests are being run locally or by GitHub Actions.
-	SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} ANSIBLE_ARGS='--extra-vars "ci_test=true"' vagrant up --provision
+	SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} ANSIBLE_ARGS='-v --extra-vars "\"ci_test=true mode=cluster\""' vagrant up --provision
 else
-	SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} CUSTOM_CA=${CUSTOM_CA} vagrant up --provision
+	SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} CUSTOM_CA=${CUSTOM_CA} ANSIBLE_ARGS='-v --extra-vars "\"mode=cluster\""' vagrant up --provision
 endif
+
+test-standalone: clean up-standalone
 
 test: clean up
 
 template_example: custom_ca
 ifeq ($(GITHUB_ACTIONS),true) # Always set to true when GitHub Actions is running the workflow. You can use this variable to differentiate when tests are being run locally or by GitHub Actions.
-	cd template_example; SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} ANSIBLE_ARGS='--extra-vars "ci_test=true"' vagrant up --provision
+	cd template_example; SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} ANSIBLE_ARGS='-v --extra-vars "ci_test=true"' vagrant up --provision
 else
 	if [ -f "docker/conf/certificates/*.crt" ]; then cp -f docker/conf/certificates/*.crt template_example/docker/conf/certificates; fi
 	cd template_example; SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} CUSTOM_CA=${CUSTOM_CA} vagrant up --provision
@@ -66,35 +81,33 @@ destroy-box:
 remove-tmp:
 	rm -rf ./tmp
 	rm -rf ./.vagrant
+	rm -rf ./dev/tmp
 	rm -rf ./.minio.sys
-	rm -rf ./example/.terraform
-	rm -rf ./example/terraform.tfstate
-	rm -rf ./example/terraform.tfstate.backup
+	rm -rf ./example/**/.terraform*
+	rm -rf ./example/**/*.tfstate
 
 clean: destroy-box remove-tmp
 
-status:
-	vagrant global-status
 # helper commands
 update-box:
-	@SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} vagrant box update || (echo '\n\nIf you get an SSL error you might be behind a transparent proxy. \nMore info https://github.com/fredrikhgrelland/vagrant-hashistack/blob/master/README.md#proxy\n\n' && exit 2)
+	@SSL_CERT_FILE=${SSL_CERT_FILE} CURL_CA_BUNDLE=${CURL_CA_BUNDLE} vagrant box update || (echo '\n\nIf you get an SSL error you might be behind a transparent proxy. \nMore info https://github.com/skatteetaten/vagrant-hashistack/blob/master/README.md#proxy\n\n' && exit 2)
 
 # to-hivemetastore
-proxy-h:
+proxy-hive:
 	docker run --rm -it --network host consul:1.8 consul connect proxy -token master -service hivemetastore-local -upstream hive-metastore:9083 -log-level debug
 # to-minio
-proxy-m:
+proxy-minio:
 	docker run --rm -it --network host consul:1.8 consul connect proxy -token master -service minio-local -upstream minio:9090 -log-level debug
 # to-postgres
-proxy-pg:
+proxy-postgres:
 	docker run --rm -it --network host consul:1.8 consul connect proxy -token master -service postgres-local -upstream postgres:5432 -log-level debug
-# to-presto
-proxy-presto:
-	docker run --rm -it --network host consul:1.8 consul connect proxy -token master -service presto-local -upstream presto:8080 -log-level debug
+# to-trino
+proxy-trino:
+	docker run --rm -it --network host consul:1.8 consul connect proxy -token master -service trino-local -upstream trino:8080 -log-level debug
 
-presto-cli:
-	CID=$$(docker run --rm -d --network host consul:1.8 connect proxy -token master -service presto-local -upstream presto:8080)
-	docker run --rm -it --network host prestosql/presto:${PRESTO_VERSION} presto --server localhost:8080 --http-proxy localhost:8080 --catalog hive --schema default --user presto --debug
+trino-cli:
+	CID=$$(docker run --rm -d --network host consul:1.8 connect proxy -token master -service trino-local -upstream trino:8080)
+	docker run --rm -it --network host trinodb/trino:${TRINO_VERSION} trino --server localhost:8080 --http-proxy localhost:8080 --catalog hive --schema default --user trino --debug
 	docker rm -f $$CID
 
 pre-commit: check_for_docker_binary check_for_terraform_binary

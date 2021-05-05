@@ -1,5 +1,66 @@
 # Changelog
 
+## [0.4.0]
+
+### Changed
+- Prestosql changed name to Trino #106
+- Updated all references to Presto #106
+- Bumped version Postgres -> 0.4.0 (trino_standalone) #111
+- Bumped version Minio -> 0.4.0 (trino_standalone) #111
+- Bumped version Hive -> 0.4.0 (trino_standalone) #111
+- Bumped version Vagrantbox -> 0.10.0 #102
+- Variables uses same naming convention as in other modules #87
+- Verbose output ansible and terraform
+- Url update due ownership transfer #101
+
+### Added
+- Trino consul connect plugin source and build #?
+- Using Trino docker image with tag 354 #106
+- Support for Postrgres connector #105
+
+### Fixed
+- `make clean` will clean terraform state #?
+
+## [0.3.2]
+
+### Changed
+- Changed from an HTTP check to a script check for `presto-minio-availability` #100
+- Bumped version of Hive 0.3.1 -> 0.4.0 [no issue]
+- Bumped version of Vagrantbox 0.7.1 -> 0.9.0 #96
+- Now uses variable to set consul image [no issue]
+
+## [0.3.1]
+
+### Added
+
+- Improve credentials management (vault provided credentials) #64
+- Added variable `hive_config_properties` for custom hive configuration properties #90
+
+### Changed
+
+- hive module 0.3.0 -> 0.3.1
+- Changed to anothrNick/github-tag-action to get bumped version tags. Old action is deprecated [no issue]
+
+## [0.3.0]
+
+### Added
+- Json flatten VIEW example #65
+- Added CPU as user defined variable #67
+- Two target, for standalone and cluster version of trino #61
+- Sidecar proxy to both examples with variables #73
+
+### Changed
+- Variables regarding credentials/secrets & updated documentation #52
+- Updated box version to 0.7.x #69
+- Additional information about proxies and Trino CLI #60
+- Updated Verifying setup section in readme #46
+- Bumped module versions in both examples #77
+- Re-added healthchecks #81
+- Using explicit variable definition instead of locals #82
+
+### Fixed
+- `make up` warning #57
+
 ## [0.2.0]
 
 ### Added
@@ -19,9 +80,9 @@
 - Documentation #3 #8
 - Fixate linter version #10
 - Consul Connect enabled multi node cluster #13 #14 #16 #19 #24
-- Code to support successful execution of nomad presto job and tests when consul_acl_default_policy is deny #32
+- Code to support successful execution of nomad trino job and tests when consul_acl_default_policy is deny #32
 - Added switch for canary deployment #25
-- Added random secret (in vault) for presto cluster communication #29
+- Added random secret (in vault) for trino cluster communication #29
 
 ## Changed
 

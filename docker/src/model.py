@@ -1,6 +1,6 @@
 import trino
 
-# Connect to Presto
+# Connect to Trino
 conn = trino.dbapi.connect(
     host='localhost',
     port=8080,

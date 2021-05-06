@@ -119,9 +119,9 @@ data "template_file" "template_nomad_job_model" {
 
     service_name   = var.model_service_name
 
-    # presto
-    presto_service_name = var.presto.service_name
-    presto_port         = var.presto.port
+    # trino
+    trino_service_name = var.service_name
+    # presto_port         = var.presto.port
   }
 }
 
@@ -130,6 +130,6 @@ resource "nomad_job" "nomad_job_model" {
   detach  = false
 
   depends_on  = [
-    nomad_job.nomad_job_presto
+    nomad_job.nomad_job_trino
   ]
 }

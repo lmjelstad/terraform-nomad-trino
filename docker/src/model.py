@@ -1,10 +1,10 @@
-import presto
+import trino
 
 # Connect to Presto
-conn = presto.dbapi.connect(
+conn = trino.dbapi.connect(
     host='localhost',
     port=8080,
-    user='presto',
+    user='trino',
     catalog='hive',
     schema='default',
 )

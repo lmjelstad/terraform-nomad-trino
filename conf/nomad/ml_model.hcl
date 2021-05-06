@@ -15,15 +15,15 @@ job "ml_model" {
                 sidecar_service {
                     proxy {
                         upstreams {
-                            destination_name = "${presto_service_name}"
-                            local_bind_port = "${presto_port}"
+                            destination_name = "${trino_service_name}"
+                            local_bind_port = 8080
                         }
                     }
                 }
             }
         }
 
-        task "waitfor-presto" {
+        task "waitfor-trino" {
             restart {
                 attempts = 100
                 delay = "5s"
@@ -44,7 +44,7 @@ job "ml_model" {
             template {
                 destination = "tmp/service.json"
                 data = <<EOH
-                {{- service "${presto_service_name}" | toJSON -}}
+                {{- service "${trino_service_name}" | toJSON -}}
                 EOH
             }
         }

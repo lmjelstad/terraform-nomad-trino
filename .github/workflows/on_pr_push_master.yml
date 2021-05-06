@@ -21,7 +21,7 @@ jobs:
           VALIDATE_DOCKER_HADOLINT: true
           VALIDATE_GO: true
           VALIDATE_HTML: true
-          VALIDATE_JAVA: true
+          # VALIDATE_JAVA: false
           VALIDATE_JSON: true
           VALIDATE_MD: true
           VALIDATE_OPENAPI: true
@@ -32,6 +32,14 @@ jobs:
           VALIDATE_SQL: true
           VALIDATE_TERRAFORM: true
           VALIDATE_XML: true
+
+  docker-auth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/upload-artifact@v2
+        with:
+          name: docker-auth
+          path: ~/.docker/config.json
 
   enforce-changelog:
     runs-on: ubuntu-latest
@@ -46,6 +54,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test:
+    needs: docker-auth
     runs-on: macos-latest
 
     strategy:
@@ -53,7 +62,7 @@ jobs:
         consul_acl: [ "consul_acl_enabled", "consul_acl_disabled" ]
         consul_acl_default_policy: [ "consul_acl_deny" ]
         nomad_acl: [ "nomad_acl_enabled", "nomad_acl_disabled" ]
-        hashicorp_binary: [ "hashicorp_oss", "hashicorp_enterprise" ]
+        hashicorp_binary: [ "hashicorp_enterprise" ]
 
     steps:
       - uses: actions/checkout@v2
@@ -111,7 +120,7 @@ jobs:
           test_hashicorp_binary: ${{ matrix.hashicorp_binary }}
 
       - name: Make .env_override in template_example dir in order to matrix test
-        if: github.repository == 'fredrikhgrelland/vagrant-hashistack-template'
+        if: github.repository == 'skatteetaten/vagrant-hashistack-template'
         run: python .github/action/create-env.py
         env:
           ENVKEY_env_override: true
@@ -124,11 +133,11 @@ jobs:
           FILE_NAME: template_example/.env_override
 
       - name: Run make template_example
-        if: github.repository == 'fredrikhgrelland/vagrant-hashistack-template'
+        if: github.repository == 'skatteetaten/vagrant-hashistack-template'
         run: make template_example
 
       - name: Make .env_override in template dir in order to matrix test
-        if: github.repository != 'fredrikhgrelland/vagrant-hashistack-template'
+        if: github.repository != 'skatteetaten/vagrant-hashistack-template'
         run: python .github/action/create-env.py
         env:
           ENVKEY_env_override: true
@@ -140,19 +149,24 @@ jobs:
           ENVKEY_vault_enterprise: ${{ steps.hashicorp_binary.outputs.vault_enterprise }}
           FILE_NAME: .env_override
 
-      - name: Run make test
-        if: github.repository != 'fredrikhgrelland/vagrant-hashistack-template'
-        run: make test
+      - uses: actions/download-artifact@v2
+        with:
+          name: docker-auth
+          path: docker/conf/config.json
+
+      - name: Run make test-standalone
+        if: github.repository != 'skatteetaten/vagrant-hashistack-template'
+        run: make test-standalone
 
   release-prerequisites:
     if: |
       contains(github.event.pull_request.labels.*.name, 'major') ||
       contains(github.event.pull_request.labels.*.name, 'minor') ||
       contains(github.event.pull_request.labels.*.name, 'patch')
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     outputs:
       bump: ${{ steps.bump.outputs.match }}
-      next_version: ${{ steps.next_version.outputs.version }}
+      next_version: ${{ steps.split_tag.outputs._0 }}
       log_entry: ${{ steps.changelog_reader.outputs.log_entry }}
 
     steps:
@@ -163,12 +177,19 @@ jobs:
         with:
           allowed: major,minor,patch
 
-      - id: next_version
-        uses: zwaldowski/semver-release-action@v1
+      - name: Bump version and push tag
+        id: next_version
+        uses: anothrNick/github-tag-action@1.26.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: ${{ steps.bump.outputs.match }}
+          DRY_RUN: true
+
+      - uses: rishabhgupta/split-by@v1
+        id: split_tag
         with:
-          dry_run: true
-          bump: ${{ steps.bump.outputs.match }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          string: ${{ steps.next_version.outputs.new_tag }}
+          split-by: '-'
 
       - name: Find and replace
         run: python .github/action/find-replace.py

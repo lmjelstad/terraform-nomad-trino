@@ -1,39 +1,3 @@
-
-Skip to content
-Pull requests
-Issues
-Marketplace
-Explore
-@lmjelstad
-github /
-super-linter
-
-228
-6.7k
-
-    620
-
-Code
-Issues 20
-Pull requests 5
-Discussions
-Actions
-Projects 1
-Wiki
-Security
-
-    Insights
-
-super-linter/.github/linters/.python-lint
-@ferrarimarco
-ferrarimarco Fix editorconfig-checker errors
-Latest commit 7862654 on Nov 5, 2020
-History
-3 contributors
-@admiralAwkbar
-@ferrarimarco
-@dsayling
-542 lines (406 sloc) 16 KB
 [MASTER]
 errors-only=
 
